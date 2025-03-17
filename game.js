@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import Table from 'cli-table';
 
-// Class to represent a Dice
+
 class Dice {
   constructor(values) {
     this.values = values;
@@ -16,14 +16,14 @@ class Dice {
   }
 }
 
-// Class for fair random number generation and HMAC
+
 class FairRandomGenerator {
   static generateKey() {
-    return crypto.randomBytes(32).toString('hex'); // 256-bit key
+    return crypto.randomBytes(32).toString('hex'); 
   }
 
   static generateRandomNumber(max) {
-    return crypto.randomInt(0, max); // Secure random number in range [0, max)
+    return crypto.randomInt(0, max); 
   }
 
   static calculateHMAC(key, message) {
@@ -31,7 +31,7 @@ class FairRandomGenerator {
   }
 }
 
-// Class to calculate probabilities of winning
+
 class ProbabilityCalculator {
   static calculateProbabilities(dice) {
     const probabilities = [];
@@ -39,7 +39,7 @@ class ProbabilityCalculator {
       probabilities[i] = [];
       for (let j = 0; j < dice.length; j++) {
         if (i === j) {
-          probabilities[i][j] = '-'; // A dice cannot play against itself
+          probabilities[i][j] = '-'; 
           continue;
         }
         let wins = 0;
@@ -55,7 +55,7 @@ class ProbabilityCalculator {
   }
 }
 
-// Class to generate and display the help table
+
 class HelpTableGenerator {
   static generateTable(dice, probabilities) {
     const table = new Table({
@@ -71,14 +71,14 @@ class HelpTableGenerator {
   }
 }
 
-// Main Game Class
+
 class Game {
   constructor(diceConfigs) {
     this.dice = diceConfigs.map((config) => new Dice(config));
     this.currentPlayer = null;
   }
 
-  // Determine who makes the first move
+  
   async determineFirstMove() {
     console.log("Let's determine who makes the first move.");
     const key = FairRandomGenerator.generateKey();
@@ -100,48 +100,84 @@ class Game {
     console.log(`${this.currentPlayer === 'user' ? 'You' : 'I'} make the first move.`);
   }
 
-  // Main game loop
+  
   async play() {
     await this.determineFirstMove();
 
-    const computerDiceIndex = FairRandomGenerator.generateRandomNumber(this.dice.length);
-    const computerDice = this.dice[computerDiceIndex];
-    console.log(`I choose the [${computerDice.values.join(',')}] dice.`);
+    let computerDice, userDice;
 
-    const userDiceIndex = await this.promptUser(
-      `Choose your dice:\n${this.dice
-        .map((d, i) => `${i} - ${d.values.join(',')}`)
-        .join('\n')}\nX - exit\n? - help\nYour selection: `
-    );
+    if (this.currentPlayer === 'user') {
+      
+      const userDiceIndex = await this.promptUser(
+        `Choose your dice:\n${this.dice
+          .map((d, i) => `${i} - ${d.values.join(',')}`)
+          .join('\n')}\nX - exit\n? - help\nYour selection: `
+      );
 
-    if (userDiceIndex === 'X') process.exit(0);
-    if (userDiceIndex === '?') {
-      this.showHelp();
-      return this.play();
+      if (userDiceIndex === 'X') process.exit(0);
+      if (userDiceIndex === '?') {
+        this.showHelp();
+        return this.play();
+      }
+
+      
+      const index = parseInt(userDiceIndex, 10);
+      if (isNaN(index) || index < 0 || index >= this.dice.length) {
+        console.log('Invalid selection. Please choose a valid dice index.');
+        return this.play();
+      }
+
+      userDice = this.dice[index];
+      console.log(`You choose the [${userDice.values.join(',')}] dice.`);
+
+      
+      const availableDice = this.dice.filter((_, i) => i !== index);
+      const computerDiceIndex = FairRandomGenerator.generateRandomNumber(availableDice.length);
+      computerDice = availableDice[computerDiceIndex];
+      console.log(`I choose the [${computerDice.values.join(',')}] dice.`);
+    } else {
+      
+      const computerDiceIndex = FairRandomGenerator.generateRandomNumber(this.dice.length);
+      computerDice = this.dice[computerDiceIndex];
+      console.log(`I choose the [${computerDice.values.join(',')}] dice.`);
+
+      
+      const availableDice = this.dice.filter((_, i) => i !== computerDiceIndex);
+      const userDiceIndex = await this.promptUser(
+        `Choose your dice:\n${availableDice
+          .map((d, i) => `${i} - ${d.values.join(',')}`)
+          .join('\n')}\nX - exit\n? - help\nYour selection: `
+      );
+
+      if (userDiceIndex === 'X') process.exit(0);
+      if (userDiceIndex === '?') {
+        this.showHelp();
+        return this.play();
+      }
+
+      
+      const index = parseInt(userDiceIndex, 10);
+      if (isNaN(index) || index < 0 || index >= availableDice.length) {
+        console.log('Invalid selection. Please choose a valid dice index.');
+        return this.play();
+      }
+
+      userDice = availableDice[index];
+      console.log(`You choose the [${userDice.values.join(',')}] dice.`);
     }
-
-    // Validate user input
-    const index = parseInt(userDiceIndex, 10);
-    if (isNaN(index) || index < 0 || index >= this.dice.length) {
-      console.log('Invalid selection. Please choose a valid dice index.');
-      return this.play();
-    }
-
-    const userDice = this.dice[index];
-    console.log(`You choose the [${userDice.values.join(',')}] dice.`);
 
     const userRoll = await this.fairRoll(userDice.length, 'your');
     const computerRoll = await this.fairRoll(computerDice.length, 'my');
 
-    console.log(`Your roll result: ${userRoll}.`);
-    console.log(`My roll result: ${computerRoll}.`);
+    console.log(`Your roll result: ${userDice.values[userRoll]}.`); 
+    console.log(`My roll result: ${computerDice.values[computerRoll]}.`); 
 
-    if (userRoll > computerRoll) console.log('You win!');
-    else if (userRoll < computerRoll) console.log('I win!');
+    if (userDice.values[userRoll] > computerDice.values[computerRoll]) console.log('You win!');
+    else if (userDice.values[userRoll] < computerDice.values[computerRoll]) console.log('I win!');
     else console.log("It's a tie!");
   }
 
-  // Fair roll protocol
+  
   async fairRoll(max, player) {
     const key = FairRandomGenerator.generateKey();
     const computerNumber = FairRandomGenerator.generateRandomNumber(max);
@@ -156,7 +192,7 @@ class Game {
       return this.fairRoll(max, player);
     }
 
-    // Validate user input
+    
     const number = parseInt(userNumber, 10);
     if (isNaN(number) || number < 0 || number >= max) {
       console.log('Invalid input. Please enter a number within the valid range.');
@@ -166,24 +202,24 @@ class Game {
     const result = (computerNumber + number) % max;
     console.log(`My number is ${computerNumber} (KEY=${key}).`);
     console.log(`The fair number generation result is ${computerNumber} + ${number} = ${result} (mod ${max}).`);
-    return result;
+    return result; 
   }
 
-  // Display the help table
+  
   showHelp() {
     const probabilities = ProbabilityCalculator.calculateProbabilities(this.dice);
     HelpTableGenerator.generateTable(this.dice, probabilities);
   }
 
-  // Prompt the user for input
+  
   async promptUser(prompt) {
     process.stdout.write(prompt);
     return new Promise((resolve) => {
       process.stdin.once('data', (data) => {
         const input = data.toString().trim();
         if (input === '?') {
-          this.showHelp(); // Display the help table
-          resolve(this.promptUser(prompt)); // Re-prompt after showing help
+          this.showHelp(); 
+          resolve(this.promptUser(prompt)); 
         } else {
           resolve(input);
         }
@@ -192,7 +228,7 @@ class Game {
   }
 }
 
-// Main function to start the game
+
 function main() {
   console.log(`
   ============================
@@ -211,7 +247,7 @@ function main() {
     const values = arg.split(',').map((val) => {
       const num = parseInt(val, 10);
       if (isNaN(num)) {
-        console.error(`Error: Invalid dice value '${val}'. All values must be integers.`);
+        console.error(`Error: Invalid Dice Value '${val}'. All values must be integers.`);
         process.exit(1);
       }
       return num;
